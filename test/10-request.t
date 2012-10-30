@@ -24,7 +24,7 @@ subtest q{Attributes} => sub {
 
 subtest q{params} => sub {
   ok $req->params;
-  is $req->params->{'start-date'}, '2012-02-29';
+  like $req->params, qr/start-date=2012-02-29/, q{start-date};
 };
 
 done_testing();
