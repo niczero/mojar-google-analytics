@@ -1,16 +1,15 @@
 package Mojar::Auth::Jwt;
 use Mojo::Base -base;
 
-our $VERSION = '0.001';
+our $VERSION = 0.021;
 
 use Carp 'croak';
 use Crypt::OpenSSL::RSA ();
 use MIME::Base64 ();
+use Mojar::ClassShare 'have';
 use Mojo::JSON;
 
-# ------------
 # Attributes
-# ------------
 
 # JWT Header
 has typ => 'JWT';
@@ -21,7 +20,7 @@ has 'iss';
 has scope => sub { q{https://www.googleapis.com/auth/analytics.readonly} };
 has aud => q{https://accounts.google.com/o/oauth2/token};
 has iat => sub { time };
-has duration => 3500;  # ~ 1 hour
+has duration => 60*60;  # 1 hour
 has exp => sub { time + $_[0]->duration };
 
 # JWT Signature
@@ -76,7 +75,7 @@ sub signature {
   return $self;
 }
 
-has json => sub { Mojo::JSON->new };
+have json => sub { Mojo::JSON->new };
 
 has cipher => sub {
   my $self = shift;
@@ -90,9 +89,7 @@ has cipher => sub {
   return $cipher;
 };
 
-# ------------
 # Public methods
-# ------------
 
 sub reset {
   my ($self) = @_;
@@ -129,6 +126,7 @@ sub verify_signature {
   return $self->cipher->verify($plaintext, $plainsign);
 }
 
+
 sub mogrify {
   my ($self, $hashref) = @_;
   return '' unless ref $hashref && ref $hashref eq 'HASH';
@@ -141,36 +139,174 @@ sub demogrify {
   return $self->json->decode(MIME::Base64::decode_base64url( $safestring ));
 }
 
-# ------------
-# Private methods
-# ------------
+package Mojo::JSON;
+# Need json keys to be sorted => s/keys/sort keys/
+no warnings 'redefine';
+sub _encode_object {
+  my $object = shift;
+  my @pairs = map { _encode_string($_) . ':' . _encode_value($object->{$_}) }
+    sort keys %$object;
+  return '{' . join(',', @pairs) . '}';
+};
 
 1;
 __END__
 
-=pod
+=head1 NAME
 
-=head1 Name
+Mojar::Auth::Jwt - JWT authentication for Google services
 
-=head1 Synopsis
+=head1 SYNOPSIS
 
-=head1 Description
+  use Mojar::Auth::Jwt;
+  $jwt = Mojar::Auth::Jwt->new(
+    iss => $auth_user,
+    private_key => $private_key
+  );
+  $tx = $ua->post_form($jwt->aud, 'UTF-8', {
+    grant_type => $grant_type,
+    assertion => $jwt->encode
+  });
+  $token = $_->json->{access_token}
+    if $_ = $tx->success;
+
+=head1 DESCRIPTION
 
 This class implements JSON Web Token (JWT) authentication (v3) for accessing
 L<googleapis.com> from a service application.  If your application impersonates
 users (to access/manipulate their data) then you need something else instead.
 
-=head1 Attributes
+=head1 ATTRIBUTES
 
-=head1 Methods
+=over 4
 
-=head1 Diagnostics
+=item typ
 
-=head1 Configuration and environment
+Type; only supported (tested) value is C<JWT>.
 
-=head1 Dependencies and incompatibilities
+=item alg
 
-=head1 Bugs and limitations
+Algorithm; only supported (tested) value is C<RS256>.
 
-=cut
+=item iss
 
+JWT username.  For example, Google Analytics reporting users have
+C<...@developer.gserviceaccount.com>.
+
+=item scope
+
+C<https://www.googleapis.com/auth/analytics.readonly>.
+
+=item aud
+
+C<https://accounts.google.com/o/oauth2/token>.
+
+=item iat
+
+Start of validity (epoch seconds).  Defaults to now.
+
+=item duration
+
+Length of validity period.  Defaults to an hour.
+
+=item exp
+
+Expiry time (epoch seconds).  Defaults to now + duration.
+
+=item private_key
+
+Private key.
+
+=item header
+
+JWT header.
+
+=item body
+
+JWT content.
+
+=item signature
+
+Signed encapsulation of header + body
+
+=item json
+
+JSON encoder/decoder object.  Defaults to a Mojo::JSON.
+
+=item cipher
+
+Cipher object, built from Crypt::OpenSSL::RSA.  Before accessing, ensure
+C<private_key> has been set.
+
+=back
+
+=head1 METHODS
+
+=over 4
+
+=item new
+
+Constructor; typically only C<iss> and C<private_key> are needed.
+
+=item reset
+
+Clear out stale fields.
+
+=item encode
+
+Encode header and body and sign with a signature.  Either ensure header and body
+are already set or pass them as parameters.
+
+  $jwt->header(...)
+      ->body(...);
+  $encoded = $jwt->encode;
+
+or
+
+  $encoded = $jwt->encode(header => q{...}, body => q{...});
+
+=item decode
+
+Create a new JWT object by deconstructing encoded strings.
+
+  $new_jwt = $jwt->decode($encoded_string);
+
+=item verify_signature
+
+Verify existing signature is valid with respect to header and body.  (Mainly
+used in unit tests.)
+
+=item mogrify
+
+Encode a hashref.
+
+  $encoded_string = $jwt->mogrify($hashref);
+
+=item demogrify
+
+Decode a hashref.
+
+  $hashref = $jwt->demogrify($encoded_string);
+
+=back
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+You need to create a low-privilege user within your GA account, granting them
+access to an appropriate profile.  Then register your application for unattended
+access.  That results in a username and private key that your application uses
+for access.
+
+=head1 RATIONALE
+
+As far as I know this class has only been used for accessing Google Analytics
+services so far.  I am expecting it to be useful for other services that use
+JWT.
+
+=head1 SUPPORT
+
+See L<Mojar>.
+
+=head1 SEE ALSO
+
+L<Acme::JWT> is less Google-centric.

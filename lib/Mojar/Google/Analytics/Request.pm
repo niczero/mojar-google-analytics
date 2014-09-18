@@ -7,9 +7,7 @@ use Mojo::Parameters;
 use Mojo::Util 'url_escape';
 use POSIX 'strftime';
 
-# ------------
 # Attributes
-# ------------
 
 has 'access_token';
 has 'ids';
@@ -21,11 +19,9 @@ has sort => sub {[]};
 has start_date => &_today;
 has end_date   => &_today;
 has start_index => 1;
-has max_results => 10000;
+has max_results => 10_000;
 
-# ------------
 # Public methods
-# ------------
 
 sub params {
   my $self = shift;
@@ -59,34 +55,117 @@ sub params {
   return $p->to_string;
 }
 
-# ------------
 # Private methods
-# ------------
 
 sub _today { strftime '%F', localtime }
 
 1;
 __END__
 
-=pod
+=head1 NAME
 
-=head1 Name
+Mojar::Google::Analytics::Request - Request object for GA reporting data.
 
-=head1 Synopsis
+=head1 SYNOPSIS
 
-=head1 Description
+  use Mojar::Google::Analytics::Request;
+  $req = Mojar::Google::Analytics::Request->new
+    ->dimensions([qw( pagePath )])
+    ->metrics([qw( visitors pageviews )])
+    ->sort('pagePath')
+    ->max_results($max_resultset);
 
-=head1 Attributes
+=head1 DESCRIPTION
 
-=head1 Methods
+Provides a container object with convenience methods.
 
-=head1 Diagnostics
+=head1 ATTRIBUTES
 
-=head1 Configuration and environment
+=over 4
 
-=head1 Dependencies and incompatibilities
+=item access_token
 
-=head1 Bugs and limitations
+Access token, obtained via JWT.
 
-=cut
+=item ids
 
+Profile ID (from your GA account) you want to use.
+
+=item dimensions
+
+Arrayref to list of desired dimensions.
+
+=item metrics
+
+Arrayref to list of desired metrics.
+
+=item segment
+
+String containing desired segment.
+
+=item filters
+
+Arrayref to list of desired filters.
+
+=item sort
+
+Specification of column sorting; either a single name (string) or a list
+(arrayref).
+
+=item start_date
+
+Defaults to today.
+
+=item end_date
+
+Defaults to today.
+
+=item start_index
+
+Defaults to 1.
+
+=item max_results
+
+Defaults to 10,000.
+
+=back
+
+=head1 METHODS
+
+=over 4
+
+=item new
+
+Constructor.
+
+  $req = Mojar::Google::Analytics::Request->new(
+    dimensions => [qw( pagePath )],
+    metrics => [qw( visitors pageviews )],
+    sort => 'pagePath',
+    start_index => $start,
+    max_results => $max_resultset
+  );
+
+=item params
+
+String of request parameters.
+
+  $url .= q{?}. $req->params;
+
+=back
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+You need to create a low-privilege user within your GA account, granting them
+access to an appropriate profile.  Then register your application for unattended
+access.  That results in a username and private key that your application uses
+for access.
+
+=head1 SUPPORT
+
+See L<Mojar>.
+
+=head1 SEE ALSO
+
+L<Net::Google::Analytics> is similar, main differences being dependencies and
+means of getting tokens.

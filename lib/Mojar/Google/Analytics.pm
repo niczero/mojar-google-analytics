@@ -1,23 +1,21 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = '0.001';
+our $VERSION = 1.024;
 
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
 use Mojar::Auth::Jwt;
 use Mojar::Google::Analytics::Request;
 use Mojar::Google::Analytics::Response;
+use Mojar::Util qw(snakecase dumper);
 use Mojo::UserAgent;
-use Mojo::Util 'decamelize';
 
-# ------------
 # Attributes
-# ------------
 
 # Analytics request
 has api_url => 'https://www.googleapis.com/analytics/v3/data/ga';
-has ua => sub { Mojo::UserAgent->new->max_redirects(3) };
+has ua => sub { Mojo::UserAgent->new->max_redirects(2) };
 has 'profile_id';
 
 sub req {
@@ -27,7 +25,7 @@ sub req {
     $self->{req} = $_[0];
   }
   else {
-    $self->{req} ||= Mojar::Google::Analytics::Request->new;
+    $self->{req} //= Mojar::Google::Analytics::Request->new;
     %{$self->{req}} = ( %{$self->{req}},
       ids => $self->{profile_id},
       @_
@@ -36,7 +34,7 @@ sub req {
   return $self;
 }
 
-has 'res';  # Analytics response
+has res => sub { Mojar::Google::Analytics::Response->new };
 
 # Authentication token
 has 'auth_user';
@@ -54,47 +52,43 @@ has jwt   => sub {
 has validity_margin => 10;  # Too close to expiry (seconds)
 has token => sub { $_[0]->_request_token };
 
-# ------------
 # Public methods
-# ------------
 
 sub fetch {
-  my $self = shift;
+  my ($self) = @_;
   croak 'Failed to see a built request' unless my $req = $self->req;
 
   # Validate params
   $self->renew_token unless $self->has_valid_token;
-  foreach (qw( token )) {
-    croak "Missing required field ($_)" unless defined $self->$_;
-  }
+  defined $self->$_ or croak "Missing required field ($_)"
+    for qw(token);
   $req->access_token($self->token);
-  foreach (qw( access_token ids )) {
-    croak "Missing required field ($_)" unless defined $req->$_;
-  }
+  defined $req->$_ or croak "Missing required field ($_)"
+    for qw(access_token ids);
 
   my $res = Mojar::Google::Analytics::Response->new;
   my $tx = $self->ua->get(
     $self->api_url .'?'. $req->params,
-    { Authorization => 'Bearer '. $self->token }
+    { 'User-Agent' => 'MojarGA', Authorization => 'Bearer '. $self->token }
   );
   if (my $response = $tx->success) {
     my $r = $response->json;
-    %$res = map +((substr decamelize('Q'. $_), 1) => $r->{$_}), keys %$r;
+    %$res = map +(snakecase($_) => $r->{$_}), keys %$r;
     $res->success(1);
-    return $self->{res} = bless $res => 'Mojar::Google::Analytics::Response';
+    return $self->{res} = $res;
   }
   else {
     my ($err, $code) = $tx->error;
-    $res->code($code)
-        ->message($err);
-#TODO: Capture errors from response body
-    $self->{res} = $res->success(0);
+    my $em = $self->_body_error($tx->res->json);
+    $self->{res} = $res->success(0)
+        ->code($code)
+        ->message($em // $code // 'possible timeout');
     return undef;
   }
 }
 
 sub has_valid_token {
-  my $self = shift;
+  my ($self) = @_;
   return undef unless my $token = $self->token;
   return undef unless my $jwt = $self->jwt;
   return undef unless time < $jwt->exp - $self->validity_margin;
@@ -103,7 +97,7 @@ sub has_valid_token {
 }
 
 sub renew_token {
-  my $self = shift;
+  my ($self) = @_;
   # Delete anything not reusable
   delete $self->{token};
   $self->jwt->reset;
@@ -111,52 +105,182 @@ sub renew_token {
   return $self->token;
 }
 
-# ------------
 # Private methods
-# ------------
 
 sub _request_token {
   my $self = shift;
   my $jwt = $self->jwt;
-  my $tx = $self->ua->post_form($jwt->aud, 'UTF-8', {
+  my $tx = $self->ua->post($jwt->aud,
+    { 'User-Agent' => 'MojarGA' }, form => {
     grant_type => $self->grant_type,
     assertion => $jwt->encode
   });
   if (my $response = $tx->success) {
     my $r = $response->json;
     return undef unless ref $r eq 'HASH'
-        && exists $r->{expires_in} && $r->{expires_in};
+        and exists $r->{expires_in} and $r->{expires_in};
     return $r->{access_token};
   }
   else {
     my ($err, $code) = $tx->error;
+    my $em = $self->_body_error($tx->res->json);
     my $error = $code ? "$code response: $err" : "Connection error: $err";
+    $error .= " ($em)";
     croak $error;
   }
+}
+
+sub _body_error {
+  my ($self, $record) = @_;
+  my $message;
+  $message = $record if defined $record;
+  $message = $message->{error}
+    if ref $message eq 'HASH' and exists $message->{error};
+  $message = $message->{message}
+    if ref $message eq 'HASH' and exists $message->{message};
+  return $message;
 }
 
 1;
 __END__
 
-=pod
+=head1 NAME
 
-=head1 Name
+Mojar::Google::Analytics - Fetch Google Analytics reporting data
 
-=head1 Synopsis
+=head1 SYNOPSIS
 
-=head1 Description
+  use Mojar::Google::Analytics;
+  $analytics = Mojar::Google::Analytics->new(
+    auth_user => q{1234@developer.gserviceaccount.com},
+    private_key => $pk,
+    profile_id => q{5678}
+  );
+  $analytics->req(
+    dimensions => [qw( pagePath )],
+    metrics => [qw( visitors pageviews )],
+    sort => 'pagePath',
+    start_index => $start,
+    max_results => $max_resultset
+  );
+  my $rs = $analytics->fetch;
 
-=head1 Attributes
+=head1 DESCRIPTION
 
-=head1 Methods
+Google Analytics provide an API for retrieving reporting data and there are
+recommended client libraries for several languages but not Perl.  This class
+provides an interface to v3 of the Core Reporting API.
 
-=head1 Diagnostics
+=head1 ATTRIBUTES
 
-=head1 Configuration and environment
+=over 4
 
-=head1 Dependencies and incompatibilities
+=item api_url
 
-=head1 Bugs and limitations
+Currently the only supported value is
+C<https://www.googleapis.com/analytics/v3/data/ga>.
 
-=cut
+=item ua
 
+An instance of the user agent to use.  Defaults to a Mojo::UserAgent.
+
+=item profile_id
+
+The profile within your GA account you want to use.
+
+=item req
+
+The current request object to use.  First set C<profile_id> then set C<req> with
+your parameters.
+
+  $ga->profile_id(...)->req(...);
+
+=item res
+
+The current result object.
+
+=item auth_user
+
+The user GA generated for you when you registered your application.  Should
+end in C<@developer.gserviceaccount.com>.
+
+=item grant_type
+
+Currently the only supported value is
+C<urn:ietf:params:oauth:grant-type:jwt-bearer>.
+
+=item private_key
+
+Your account's private key.
+
+=item jwt
+
+The JWT object.  Defaults to
+
+  Mojar::Auth::Jwt->new(
+    iss => $self->auth_user,
+    private_key => $self->private_key
+  )
+
+=item validity_margin
+
+How close (in seconds) to the expiry time should the current token be replaced.
+Defaults to 10 seconds.
+
+=item token
+
+The current access token.
+
+=back
+
+=head1 METHODS
+
+=over 4
+
+=item new
+
+Sets the credentials for access.
+
+  $analytics = Mojar::Google::Analytics->new(
+    auth_user => q{1234@developer.gserviceaccount.com},
+    private_key => $pk,
+    profile_id => q{5678}
+  );
+
+=item fetch
+
+Fetches first/next batch of results based on set credentials and the C<req>
+object.  Automatically checks/renews the access token.
+
+  $result = $analytics->fetch  # replaces $analytics->res
+
+=item has_valid_token
+
+Check if the current token is still valid (and not too close to expiry).  (See
+C<validity_margin>.)
+
+  unless ($analytics->has_valid_token) { ... }
+
+=item renew_token
+
+Force obtaining a fresh token.
+
+  $token = $analytics->renew_token  # replaces $analytics->token
+
+=back
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+You need to create a low-privilege user within your GA account, granting them
+access to an appropriate profile.  Then register your application for unattended
+access.  That results in a username and private key that your application uses
+for access.
+
+=head1 SUPPORT
+
+See L<Mojar>.
+
+=head1 SEE ALSO
+
+L<Net::Google::Analytics> is similar, main differences being dependencies and
+means of getting tokens.
