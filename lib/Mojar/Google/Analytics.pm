@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.024;
+our $VERSION = 1.031;
 
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
@@ -122,7 +122,7 @@ sub _request_token {
     return $r->{access_token};
   }
   else {
-    my ($err, $code) = $tx->error;
+    my ($err, $code) = @{$tx->error}{'message', 'advice'};
     my $em = $self->_body_error($tx->res->json);
     my $error = $code ? "$code response: $err" : "Connection error: $err";
     $error .= " ($em)";
@@ -132,13 +132,11 @@ sub _request_token {
 
 sub _body_error {
   my ($self, $record) = @_;
-  my $message;
-  $message = $record if defined $record;
-  $message = $message->{error}
-    if ref $message eq 'HASH' and exists $message->{error};
-  $message = $message->{message}
-    if ref $message eq 'HASH' and exists $message->{message};
-  return $message;
+  return $record->{message}
+    if ref $record eq 'HASH' and exists $record->{message};
+  return $record->{error}
+    if ref $record eq 'HASH' and exists $record->{error};
+  return undef;
 }
 
 1;

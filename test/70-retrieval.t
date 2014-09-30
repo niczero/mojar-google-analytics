@@ -59,9 +59,9 @@ subtest q{fetch} => sub {
 subtest q{Result set} => sub {
   ok $analytics->req(
     dimensions => [qw( pagePath )],
-    metrics => [qw( visitors newVisits visits bounces timeOnSite entrances
-                    pageviews uniquePageviews timeOnPage exits )],
-    metrics => [qw( uniquePageviews )],
+    metrics => [qw(visitors newVisits visits bounces timeOnSite entrances
+        pageviews uniquePageviews timeOnPage exits)],
+    metrics => [qw(uniquePageviews)],
     sort => 'pagePath',
     start_index => 1,
     max_results => 5
@@ -78,14 +78,3 @@ subtest q{Result set} => sub {
 };
 
 done_testing();
-__END__
-
-=pod
-
-=head1 Description
-
-=head1 Author
-
-Nic Sandfield
-
-=cut

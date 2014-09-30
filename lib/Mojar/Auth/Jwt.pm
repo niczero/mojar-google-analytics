@@ -1,13 +1,13 @@
 package Mojar::Auth::Jwt;
 use Mojo::Base -base;
 
-our $VERSION = 0.021;
+our $VERSION = 0.031;
 
 use Carp 'croak';
 use Crypt::OpenSSL::RSA ();
 use MIME::Base64 ();
 use Mojar::ClassShare 'have';
-use Mojo::JSON;
+use Mojo::JSON 'encode_json', 'decode_json';
 
 # Attributes
 
@@ -75,8 +75,6 @@ sub signature {
   return $self;
 }
 
-have json => sub { Mojo::JSON->new };
-
 has cipher => sub {
   my $self = shift;
   foreach (qw( private_key )) {
@@ -130,13 +128,13 @@ sub verify_signature {
 sub mogrify {
   my ($self, $hashref) = @_;
   return '' unless ref $hashref && ref $hashref eq 'HASH';
-  return MIME::Base64::encode_base64url($self->json->encode( $hashref ));
+  return MIME::Base64::encode_base64url(encode_json($hashref));
 }
 
 sub demogrify {
   my ($self, $safestring) = @_;
   return {} unless defined $safestring && length $safestring;
-  return $self->json->decode(MIME::Base64::decode_base64url( $safestring ));
+  return decode_json(MIME::Base64::decode_base64url($safestring));
 }
 
 package Mojo::JSON;
@@ -228,10 +226,6 @@ JWT content.
 =item signature
 
 Signed encapsulation of header + body
-
-=item json
-
-JSON encoder/decoder object.  Defaults to a Mojo::JSON.
 
 =item cipher
 

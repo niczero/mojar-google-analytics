@@ -1,11 +1,15 @@
+1.031 2014-09-30
+  * Replaced json object with function calls (Auth::Jwt).
+  * Replaced error tuple with error hash (Analytics).
+
 1.024 2014-09-18
   * Used Mojar::ClassShare for class attribute for json object (Auth::Jwt).
   * Monkey patched Mojo::JSON to sort keys (Auth::Jwt).
-  * Upgraded dependency to Mojar@2 for Util::snakecase (Google::Analytics).
-  * Upgraded dependency to Mojolicious@5 for tx->error (Google::Analytics).
+  * Upgraded dependency to Mojar@2 for Util::snakecase (Analytics).
+  * Upgraded dependency to Mojolicious@5 for tx->error (Analytics).
 
 1.011 2013-08-03
-  * Improved error reporting (Google::Analytics).
+  * Improved error reporting (Analytics).
   * Removed data dependency in test/20-auth.t
 
 1.001 2012-10-30
