@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.031;
+our $VERSION = 1.041;
 
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
@@ -15,8 +15,11 @@ use Mojo::UserAgent;
 
 # Analytics request
 has api_url => 'https://www.googleapis.com/analytics/v3/data/ga';
-has ua => sub { Mojo::UserAgent->new->max_redirects(2) };
+has ua => sub {
+  Mojo::UserAgent->new->max_redirects(2)->inactivity_timeout(shift->timeout)
+};
 has 'profile_id';
+has timeout => 60;
 
 sub req {
   my $self = shift;
@@ -181,6 +184,19 @@ C<https://www.googleapis.com/analytics/v3/data/ga>.
 =item ua
 
 An instance of the user agent to use.  Defaults to a Mojo::UserAgent.
+
+=item timeout
+
+  $analytics = Mojar::Google::Analytics->new(
+    auth_user => q{1234@developer.gserviceaccount.com},
+    private_key => $pk,
+    profile_id => q{5678},
+    timeout => 120
+  );
+
+The inactivity timeout for the user agent.  Any change from the default (60 sec)
+must be applied before the first use of the user agent, and so is best done when
+creating your analytics object.
 
 =item profile_id
 

@@ -1,3 +1,6 @@
+1.041 2014-10-01
+  * Added timeout attribute to handle slow responses from Google (Analytics).
+
 1.031 2014-09-30
   * Replaced json object with function calls (Auth::Jwt).
   * Replaced error tuple with error hash (Analytics).
