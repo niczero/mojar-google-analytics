@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.041;
+our $VERSION = 1.042;
 
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
