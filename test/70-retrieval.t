@@ -52,7 +52,8 @@ subtest q{fetch} => sub {
     ok $res = $analytics->fetch, 'fetch';
   }
   or diag sprintf "profile: [%s]\nerror: %s",
-      $profile, $analytics->res->error // '';
+      $profile, $analytics->res->error->{message} // '';
+  diag $res->success;
   ok $res->success, 'success';
 };
 

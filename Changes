@@ -1,3 +1,6 @@
+1.051 2014-10-09
+  * Improved error parsing (Response).
+
 1.042 2014-10-06
   * Added timeout attribute to handle slow responses from Google (Analytics).
   * Added guide (Guide::GoogleAnalytics).

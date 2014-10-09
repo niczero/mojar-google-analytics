@@ -8,6 +8,7 @@ lib/Mojar/Auth/Jwt.pm
 lib/Mojar/Google/Analytics.pm
 lib/Mojar/Google/Analytics/Request.pm
 lib/Mojar/Google/Analytics/Response.pm
+lib/Mojar/Guide/GoogleAnalytics.pod
 test/00-load.t
 test/10-request.t
 test/12-analytics.t

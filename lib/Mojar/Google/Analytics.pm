@@ -1,14 +1,13 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.042;
+our $VERSION = 1.051;
 
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
 use Mojar::Auth::Jwt;
 use Mojar::Google::Analytics::Request;
 use Mojar::Google::Analytics::Response;
-use Mojar::Util qw(snakecase dumper);
 use Mojo::UserAgent;
 
 # Attributes
@@ -75,17 +74,10 @@ sub fetch {
     { 'User-Agent' => 'MojarGA', Authorization => 'Bearer '. $self->token }
   );
   if (my $response = $tx->success) {
-    my $r = $response->json;
-    %$res = map +(snakecase($_) => $r->{$_}), keys %$r;
-    $res->success(1);
-    return $self->{res} = $res;
+    return $self->res($res->success(1)->parse($tx))->res;
   }
   else {
-    my ($err, $code) = $tx->error;
-    my $em = $self->_body_error($tx->res->json);
-    $self->{res} = $res->success(0)
-        ->code($code)
-        ->message($em // $code // 'possible timeout');
+    $self->res($res->success(0)->parse($tx));
     return undef;
   }
 }
@@ -118,28 +110,18 @@ sub _request_token {
     grant_type => $self->grant_type,
     assertion => $jwt->encode
   });
-  if (my $response = $tx->success) {
-    my $r = $response->json;
-    return undef unless ref $r eq 'HASH'
-        and exists $r->{expires_in} and $r->{expires_in};
-    return $r->{access_token};
+  if (my $r = $tx->success) {
+    my $j = $r->json;
+    return undef unless ref $j eq 'HASH'
+        and exists $j->{expires_in} and $j->{expires_in};
+    return $j->{access_token};
   }
   else {
-    my ($err, $code) = @{$tx->error}{'message', 'advice'};
-    my $em = $self->_body_error($tx->res->json);
-    my $error = $code ? "$code response: $err" : "Connection error: $err";
-    $error .= " ($em)";
-    croak $error;
+    my $res = Mojar::Google::Analytics::Response->new;
+    $res->success(0)->parse($tx);
+    my $code = $res->error->{advice} // 'Connection';
+    croak "$code error: ${\ $res->error->{message}}";
   }
-}
-
-sub _body_error {
-  my ($self, $record) = @_;
-  return $record->{message}
-    if ref $record eq 'HASH' and exists $record->{message};
-  return $record->{error}
-    if ref $record eq 'HASH' and exists $record->{error};
-  return undef;
 }
 
 1;

@@ -1,15 +1,15 @@
 package Mojar::Google::Analytics::Response;
 use Mojo::Base -base;
 
-our $VERSION = '0.001';
+our $VERSION = 0.011;
+
+use Mojar::Util qw(snakecase dumper);
 
 # Attributes
 
 has 'success';
-has 'code';
-has 'message';
-
-has error => sub { join ':', @{$_[0]}{qw(code message)} };
+has 'error';
+has 'content';
 
 has start_index => 1;
 has 'items_per_page';
@@ -21,6 +21,35 @@ has total_results => 0;
 has rows => sub {[]};
 has 'totals_for_all_results';
 
+# Public methods
+
+sub parse {
+	my ($self, $tx) = @_;
+
+	if ($self->success) {
+    $self->error(undef)->content(undef);
+    my $j = $tx->res->json;
+    $self->{snakecase($_)} = $j->{$_} for keys %$j;
+  }
+  else {
+    $self->error($tx->error);
+    if (not defined(my $res = $tx->res)) {
+      $self->error->{message} = 'Possible timeout';
+      $self->error->{advice} //= 408;
+    }
+    elsif (my $j = $res->json) {
+      $self->content($j);
+      if (exists $j->{message}) {
+        $self->error->{message} = $j->{message};
+      }
+      elsif (exists $j->{error}) {
+        $self->error->{message} = $j->{error};
+      }
+    }
+  }
+	return $self;
+}
+
 1;
 __END__
 
@@ -31,7 +60,7 @@ Mojar::Google::Analytics::Response - Response object from GA reporting.
 =head1 SYNOPSIS
 
   use Mojar::Google::Analytics::Response;
-  $response = Mojar::Google::Analytics::Response->new
+  $response = Mojar::Google::Analytics::Response->new(
     auth_user => q{1234@developer.gserviceaccount.com},
     private_key => $pk,
     profile_id => q{5678}
