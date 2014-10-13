@@ -25,6 +25,7 @@ WriteMakefile(
   PREREQ_PM => {
     Mojolicious => 5,
     Mojar => 2,
+    'MIME::Base64' => 3,
     'IO::Socket::SSL' => 1.75,
     'Crypt::OpenSSL::RSA' => 0.28
   },
