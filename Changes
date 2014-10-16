@@ -1,6 +1,6 @@
-1.052 2014-10-13
+1.053 2014-10-16
   * Improved error parsing (Response).
-  * Added dependency (MIME::Base64) for perls v10 & v12.
+  * Requires perl v5.14 due to MIME::Base64::encode_base64url.
 
 1.042 2014-10-06
   * Added timeout attribute to handle slow responses from Google (Analytics).
