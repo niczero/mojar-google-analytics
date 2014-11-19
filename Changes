@@ -1,5 +1,8 @@
-1.053 2014-10-16
+1.061 2014-11-19
   * Improved error parsing (Response).
+
+1.053 2014-10-16
+  * Updated error parsing (Response).
   * Requires perl v5.14 due to MIME::Base64::encode_base64url.
 
 1.042 2014-10-06

@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.053;
+our $VERSION = 1.061;
 
 use 5.014001;  # For MIME::Base64::encode_base64url
 use Carp 'croak';

@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics::Response;
 use Mojo::Base -base;
 
-our $VERSION = 0.011;
+our $VERSION = 0.021;
 
 use Mojar::Util qw(snakecase dumper);
 
@@ -24,30 +24,46 @@ has 'totals_for_all_results';
 # Public methods
 
 sub parse {
-	my ($self, $tx) = @_;
+  my ($self, $tx) = @_;
 
-	if ($self->success) {
+  if ($self->success) {
     $self->error(undef)->content(undef);
     my $j = $tx->res->json;
     $self->{snakecase($_)} = $j->{$_} for keys %$j;
   }
   else {
+    # Got a transaction-level error
     $self->error($tx->error);
-    if (not defined(my $res = $tx->res)) {
+
+    if ($tx->res and my $j = $tx->res->json) {
+      # Got JSON body in response
+      $self->content($j);
+
+      if (my $m = $j->{message}) {
+        # Got message record
+        $self->error->{advice} = $m->{code} // $self->error->{advice} // 418;
+        # Take note of headline error
+        my $msg = $m->{message} ."\n";
+
+        for my $e (@{$m->{errors} // []}) {
+          # Take note of next listed error
+          $msg .= sprintf "%s at %s\n%s\n",
+              $e->{reason}, $e->{location}, $e->{message};
+        }
+        $self->error->{message} = $msg;
+      }
+      else {
+        # Got error record
+        $self->error->{message} = $j->{error} // 'Bad communication';
+      }
+    }
+    else {
+      # No usable response
       $self->error->{message} = 'Possible timeout';
       $self->error->{advice} //= 408;
     }
-    elsif (my $j = $res->json) {
-      $self->content($j);
-      if (exists $j->{message}) {
-        $self->error->{message} = $j->{message};
-      }
-      elsif (exists $j->{error}) {
-        $self->error->{message} = $j->{error};
-      }
-    }
   }
-	return $self;
+  return $self;
 }
 
 1;
