@@ -1,8 +1,9 @@
 package Mojar::Google::Analytics::Request;
 use Mojo::Base -base;
 
-our $VERSION = '0.001';
+our $VERSION = 0.012;
 
+use Carp 'croak';
 use Mojo::Parameters;
 use Mojo::Util 'url_escape';
 use POSIX 'strftime';
@@ -25,24 +26,39 @@ has max_results => 10_000;
 
 sub params {
   my $self = shift;
-  my %param = (%$self, @_);
+  my $param = Mojar::Google::Analytics::Request->new(%$self, @_);
   my $p = Mojo::Parameters->new;
 
   # Absorb driver params, using defaults if necessary
-  foreach (qw( start_date end_date start_index max_results )) {
-    my ($k, $v) = ($_, $self->$_);
-    delete $param{$_};
+  for (qw(start_date end_date start_index max_results)) {
+    my $k = $_;
+    my $v = $param->$k;
+    delete $param->{$k};
     $k =~ s/_/-/;
     $p = $p->append($k => $v);
   }
 
+  for my $k (qw(dimensions metrics)) {
+    my $v = $param->$k;
+    if (not ref $v or ref $v ne 'ARRAY') {
+      croak "Field $k needs to be an arrayref";
+    }
+    elsif (@$v >= 2 and @$v % 2 == 0 and $v->[1] and $v->[1] !~ /[a-z]/) {
+      # Assume hash (declaring datatypes)
+      my $a = 'ga:'. $v->[2 * 0];
+      $a .= ',ga:'. $v->[2 * $_] for 1 .. (@$v / 2 - 1);
+      $p = $p->append($k => $a);
+      delete $param->{$k};
+    }
+  }
+
   # Absorb everything else
-  foreach (keys %param) {
-    my ($k, $v) = ($_, $param{$_});
+  for my $k (keys %$param) {
+    my $v = $param->$k;
     $k =~ s/_/-/;
     if (ref $v) {
       # Array ref
-      $v = join q{,}, map +('ga:'. $_), @$v;
+      $v = join ',', map "ga:$_", @$v;
     }
     else {
       # Scalar

@@ -3,7 +3,7 @@ use Mojo::Base -base;
 
 our $VERSION = 0.021;
 
-use Mojar::Util qw(snakecase dumper);
+use Mojar::Util qw(dumper snakecase);
 
 # Attributes
 
@@ -26,44 +26,38 @@ has 'totals_for_all_results';
 sub parse {
   my ($self, $tx) = @_;
 
-  if ($self->success) {
+  if ($tx->success) {
     $self->error(undef)->content(undef);
     my $j = $tx->res->json;
     $self->{snakecase($_)} = $j->{$_} for keys %$j;
+    return $self;
   }
   else {
     # Got a transaction-level error
     $self->error($tx->error);
+    $self->error->{code} ||= 408;
+    $self->error->{message} //= 'Possible timeout';
 
     if ($tx->res and my $j = $tx->res->json) {
       # Got JSON body in response
       $self->content($j);
 
-      if (my $m = $j->{message}) {
+      if (my $m = ($j->{error} // $j->{message})) {
         # Got message record
-        $self->error->{advice} = $m->{code} // $self->error->{advice} // 418;
+        $self->error->{code} = $m->{code} if $m->{code};
         # Take note of headline error
         my $msg = $m->{message} ."\n";
 
         for my $e (@{$m->{errors} // []}) {
           # Take note of next listed error
           $msg .= sprintf "%s at %s\n%s\n",
-              $e->{reason}, $e->{location}, $e->{message};
+              $e->{reason}, ($e->{location} // $e->{domain}), $e->{message};
         }
         $self->error->{message} = $msg;
       }
-      else {
-        # Got error record
-        $self->error->{message} = $j->{error} // 'Bad communication';
-      }
     }
-    else {
-      # No usable response
-      $self->error->{message} = 'Possible timeout';
-      $self->error->{advice} //= 408;
-    }
+    return undef;
   }
-  return $self;
 }
 
 1;

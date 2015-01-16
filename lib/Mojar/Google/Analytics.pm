@@ -1,7 +1,7 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.061;
+our $VERSION = 1.071;
 
 use 5.014001;  # For MIME::Base64::encode_base64url
 use Carp 'croak';
@@ -43,7 +43,7 @@ has res => sub { Mojar::Google::Analytics::Response->new };
 has 'auth_user';
 has grant_type => 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 has 'private_key';
-has jwt   => sub {
+has jwt => sub {
   my $self = shift;
   my %param = map +($_ => $self->$_), qw( private_key );
   $param{iss} = $self->auth_user;
@@ -63,8 +63,7 @@ sub fetch {
 
   # Validate params
   $self->renew_token unless $self->has_valid_token;
-  defined $self->$_ or croak "Missing required field ($_)"
-    for qw(token);
+  defined $self->$_ or croak "Missing required field ($_)" for qw(token);
   $req->access_token($self->token);
   defined $req->$_ or croak "Missing required field ($_)"
     for qw(access_token ids);
@@ -74,13 +73,7 @@ sub fetch {
     $self->api_url .'?'. $req->params,
     { 'User-Agent' => 'MojarGA', Authorization => 'Bearer '. $self->token }
   );
-  if (my $response = $tx->success) {
-    return $self->res($res->success(1)->parse($tx))->res;
-  }
-  else {
-    $self->res($res->success(0)->parse($tx));
-    return undef;
-  }
+  return $res->parse($tx) ? $self->res($res)->res : $self->res($res) && undef;
 }
 
 sub has_valid_token {
@@ -119,8 +112,8 @@ sub _request_token {
   }
   else {
     my $res = Mojar::Google::Analytics::Response->new;
-    $res->success(0)->parse($tx);
-    my $code = $res->error->{advice} // 'Connection';
+    $res->parse($tx);
+    my $code = $res->error->{code} || 'Connection';
     croak "$code error: ${\ $res->error->{message}}";
   }
 }

@@ -1,3 +1,7 @@
+1.071 2015-01-16
+  * Updated error parsing for new struct (Response).
+  * Modified usage (API) for 'parse' (Response).
+
 1.061 2014-11-19
   * Improved error parsing (Response).
 
