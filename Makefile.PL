@@ -23,7 +23,7 @@ WriteMakefile(
   BUILD_REQUIRES => {'Test::More' => 0},
   CONFIGURE_REQUIRES => {'ExtUtils::MakeMaker' => 6.3},
   PREREQ_PM => {
-    Mojolicious => 5,
+    Mojolicious => 7.15,
     Mojar => 2,
     'IO::Socket::SSL' => 1.75,
     'Crypt::OpenSSL::RSA' => 0.28

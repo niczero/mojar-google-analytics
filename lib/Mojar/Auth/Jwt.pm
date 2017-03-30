@@ -1,7 +1,7 @@
 package Mojar::Auth::Jwt;
 use Mojo::Base -base;
 
-our $VERSION = 0.031;
+our $VERSION = 0.032;
 
 use Carp 'croak';
 use Crypt::OpenSSL::RSA ();
@@ -32,7 +32,7 @@ sub header {
   my $self = shift;
 
   if (@_ == 0) {
-    my @h = map +( ($_, $self->$_) ), qw( typ alg );
+    my @h = map +( ($_, $self->$_) ), qw(typ alg);
     return $self->{header} = $self->mogrify( { @h } );
   }
   else {
@@ -45,11 +45,11 @@ sub body {
   my $self = shift;
 
   if (@_ == 0) {
-    foreach (qw( iss scope )) {
+    foreach (qw(iss scope)) {
       croak "Missing required field ($_)" unless defined $self->$_;
     }
     $self->{scope} = join ' ', @{$self->{scope}} if ref $self->{scope};
-    my @c = map +( ($_, $self->$_) ), qw( iss scope aud exp iat );
+    my @c = map +( ($_, $self->$_) ), qw(iss scope aud exp iat);
     return $self->{body} = $self->mogrify( { @c } );
   }
   else {
@@ -77,7 +77,7 @@ sub signature {
 
 has cipher => sub {
   my $self = shift;
-  foreach (qw( private_key )) {
+  foreach ('private_key') {
     croak qq{Missing required field ($_)} unless defined $self->$_;
   }
 
@@ -91,7 +91,7 @@ has cipher => sub {
 
 sub reset {
   my ($self) = @_;
-  delete @$self{qw( iat exp body signature )};
+  delete @$self{qw(iat exp body signature)};
   return;
 }
 
@@ -99,7 +99,7 @@ sub encode {
   my $self = shift;
   if (ref $self) {
     # Encoding an existing object
-    %$self = ( %$self, @_ ) if @_;
+    %$self = (%$self, @_) if @_;
   }
   else {
     # Class method => create object
@@ -124,11 +124,10 @@ sub verify_signature {
   return $self->cipher->verify($plaintext, $plainsign);
 }
 
-
 sub mogrify {
   my ($self, $hashref) = @_;
   return '' unless ref $hashref && ref $hashref eq 'HASH';
-  return MIME::Base64::encode_base64url(encode_json($hashref));
+  return MIME::Base64::encode_base64url(encode_json $hashref);
 }
 
 sub demogrify {

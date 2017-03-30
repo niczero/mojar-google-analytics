@@ -1,5 +1,6 @@
 # No private files
 ^\.
+^data
 ^debian
 ^dep
 

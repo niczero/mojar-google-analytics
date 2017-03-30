@@ -1,31 +1,36 @@
+1.101 2017-03-30
+  - Fix error handling bug (Jwt).
+  - Update tx handling for Mojolicious v7 (Analytics, Response).
+  - Update tests for Mojo::File (20_auth, 70_retrieval, version).
+
 1.071 2015-01-16
-  * Updated error parsing for new struct (Response).
-  * Modified usage (API) for 'parse' (Response).
+  - Update error parsing for new struct (Response).
+  - Modify usage (API) for 'parse' (Response).
 
 1.061 2014-11-19
-  * Improved error parsing (Response).
+  - Improve error parsing (Response).
 
 1.053 2014-10-16
-  * Updated error parsing (Response).
-  * Requires perl v5.14 due to MIME::Base64::encode_base64url.
+  - Update error parsing (Response).
+  - Require perl v5.14 due to MIME::Base64::encode_base64url.
 
 1.042 2014-10-06
-  * Added timeout attribute to handle slow responses from Google (Analytics).
-  * Added guide (Guide::GoogleAnalytics).
+  - Add timeout attribute to handle slow responses from Google (Analytics).
+  - Add guide (Guide::GoogleAnalytics).
 
 1.031 2014-09-30
-  * Replaced json object with function calls (Auth::Jwt).
-  * Replaced error tuple with error hash (Analytics).
+  - Replace json object with function calls (Auth::Jwt).
+  - Replace error tuple with error hash (Analytics).
 
 1.024 2014-09-18
-  * Used Mojar::ClassShare for class attribute for json object (Auth::Jwt).
-  * Monkey patched Mojo::JSON to sort keys (Auth::Jwt).
-  * Upgraded dependency to Mojar@2 for Util::snakecase (Analytics).
-  * Upgraded dependency to Mojolicious@5 for tx->error (Analytics).
+  - Use Mojar::ClassShare for class attribute for json object (Auth::Jwt).
+  - Monkey patch Mojo::JSON to sort keys (Auth::Jwt).
+  - Upgrade dependency to Mojar@2 for Util::snakecase (Analytics).
+  - Upgrade dependency to Mojolicious@5 for tx->error (Analytics).
 
 1.011 2013-08-03
-  * Improved error reporting (Analytics).
-  * Removed data dependency in test/20-auth.t
+  - Improve error reporting (Analytics).
+  - Remove data dependency in test/20-auth.t
 
 1.001 2012-10-30
-  * Initial release candidate.
+  - Initial release candidate.

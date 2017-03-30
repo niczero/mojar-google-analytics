@@ -12,7 +12,7 @@ BEGIN {
 
 use Test::More;
 use Mojar::Auth::Jwt;
-use Mojo::Util 'slurp';
+use Mojo::File 'path';
 
 my $jwt;
 
@@ -108,8 +108,8 @@ SKIP: {
     unless $ENV{TEST_KEY};
 subtest q{Roundtrip encode->decode} => sub {
   my $jwt2;
-  ok $jwt2 = $jwt->decode($jwt->encode(private_key => slurp 'data/privatekey.pem')),
-      'decode(encode())';
+  ok $jwt2 = $jwt->decode($jwt->encode(
+      private_key => path('data/privatekey.pem')->slurp)), 'decode(encode())';
   delete @$jwt{qw( header body signature json cipher private_key )};
   is_deeply $jwt2, $jwt, 'Round trip';
 };

@@ -1,9 +1,9 @@
 package Mojar::Google::Analytics;
 use Mojo::Base -base;
 
-our $VERSION = 1.071;
+our $VERSION = 1.101;
 
-use 5.014001;  # For MIME::Base64::encode_base64url
+use 5.014;  # For MIME::Base64::encode_base64url
 use Carp 'croak';
 use IO::Socket::SSL 1.75;
 use Mojar::Auth::Jwt;
@@ -45,7 +45,7 @@ has grant_type => 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 has 'private_key';
 has jwt => sub {
   my $self = shift;
-  my %param = map +($_ => $self->$_), qw( private_key );
+  my %param = map +($_ => $self->$_), 'private_key';
   $param{iss} = $self->auth_user;
   Mojar::Auth::Jwt->new(
     iss => $self->auth_user,
@@ -71,9 +71,9 @@ sub fetch {
   my $res = Mojar::Google::Analytics::Response->new;
   my $tx = $self->ua->get(
     $self->api_url .'?'. $req->params,
-    { 'User-Agent' => 'MojarGA', Authorization => 'Bearer '. $self->token }
+    { 'User-Agent' => __PACKAGE__, Authorization => 'Bearer '. $self->token }
   );
-  return $res->parse($tx) ? $self->res($res)->res : $self->res($res) && undef;
+  return $res->parse($tx->res) ? $self->res($res)->res : $self->res($res) && undef;
 }
 
 sub has_valid_token {
@@ -99,22 +99,22 @@ sub renew_token {
 sub _request_token {
   my $self = shift;
   my $jwt = $self->jwt;
-  my $tx = $self->ua->post($jwt->aud,
+  my $res = $self->ua->post($jwt->aud,
     { 'User-Agent' => 'MojarGA' }, form => {
     grant_type => $self->grant_type,
     assertion => $jwt->encode
-  });
-  if (my $r = $tx->success) {
-    my $j = $r->json;
-    return undef unless ref $j eq 'HASH'
-        and exists $j->{expires_in} and $j->{expires_in};
+  })->res;
+  if ($res->is_success) {
+    my $j = $res->json;
+    return undef unless ref $j eq 'HASH' and $j->{expires_in};
     return $j->{access_token};
   }
   else {
-    my $res = Mojar::Google::Analytics::Response->new;
-    $res->parse($tx);
-    my $code = $res->error->{code} || 'Connection';
-    croak "$code error: ${\ $res->error->{message}}";
+    my $ga_res = Mojar::Google::Analytics::Response->new;
+    $ga_res->parse($res);
+    my $code = $ga_res->error->{code} || 'Connection';
+    croak sprintf '%s error: %s',
+        $ga_res->error->{code} || 'Connection', $ga_res->error->{message};
   }
 }
 
