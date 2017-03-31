@@ -93,10 +93,9 @@ subtest q{fetch} => sub {
 
 subtest q{Result set} => sub {
   ok $analytics->req(
-    dimensions => [qw( pagePath )],
+    dimensions => [qw(pagePath)],
     metrics => [qw(visitors newVisits visits bounces timeOnSite entrances
         pageviews uniquePageviews timeOnPage exits)],
-    metrics => [qw(uniquePageviews)],
     sort => 'pagePath',
     start_index => 1,
     max_results => 5
@@ -110,6 +109,11 @@ subtest q{Result set} => sub {
   ), 'req(..)';
   ok $res = $analytics->fetch, 'fetch';
   ok $res->success, 'success';
+
+  ok $res->rows, 'got rows';
+  ok scalar(@{$res->rows}), 'got some rows';
+  cmp_ok scalar(@{$res->rows}), '==', 5, 'got correct qty rows';
+  cmp_ok scalar(@{$res->columns}), '==', 11, 'got correct qty columns';
 };
 
 subtest q{error} => sub {
@@ -123,8 +127,8 @@ subtest q{error} => sub {
   ok $res = $analytics->res, 'got stored res';
   ok $analytics->res->error, 'error';
   ok ! $res->success, 'not success';
-  like $res->error->{message}, qr/unknown metric/i, 'message';
-  like $res->error->{message}, qr/voots/, 'correct identification';
+  like $res->message, qr/unknown metric/i, 'message';
+  like $res->message, qr/voots/, 'correct identification';
 };
 
 done_testing();

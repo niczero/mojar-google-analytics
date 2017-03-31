@@ -1,13 +1,13 @@
 package Mojar::Google::Analytics::Response;
 use Mojo::Base -base;
 
-our $VERSION = 1.001;
+our $VERSION = 1.011;
 
 use Mojar::Util 'snakecase';
 
 # Attributes
 
-has [qw(content error success)];
+has [qw(code content error message success)];
 
 has start_index => 1;
 has contains_sampled_data => !!0;
@@ -22,17 +22,16 @@ sub parse {
   my ($self, $res) = @_;
 
   if ($res->is_success) {
-    delete @$self{qw(content error)};
+    delete @$self{qw(code content error message)};
     my $j = $res->json;
     $self->{snakecase($_)} = $j->{$_} for keys %$j;
     return $self->success(1);
   }
   else {
     # Got a transaction-level error
-    $self->error({
-      code => $res->code || 408,
-      message => $res->message // 'Possible timeout'
-    });
+    $self->success(undef)->code($res->code || 408)
+      ->message($res->message // 'Possible timeout')
+      ->error(sprintf 'Error (%u): %s', $_[0]->code, $_[0]->message);
 
     if ($res and my $j = $res->json) {
       # Got JSON body in response
@@ -40,7 +39,7 @@ sub parse {
       my $m = ref($j->{error}) ? $j->{error} : {message => $j->{error} // ''};
 
       # Got message record
-      $self->{error}{code} = $m->{code} || $self->{error}{code} // 0;
+      $self->code($m->{code}) if $m->{code};
       # Take note of headline error
       my $msg = ($m->{message} // $j->{message}) ."\n";
 
@@ -49,11 +48,27 @@ sub parse {
         $msg .= sprintf "%s at %s\n%s\n",
             $e->{reason}, ($e->{location} // $e->{domain}), $e->{message};
       }
-      $self->{error}{message} = $msg;
+      $self->message($msg);
     }
     return undef;
   }
 }
+
+sub columns {
+  my $self = shift;
+  return undef unless my $rows = $self->rows;
+  return undef unless my $height = @$rows;
+  return undef unless my $width = @{$$rows[0]};
+
+  my @cols = map [], 1 .. $width;
+  for (my $j = 0; $j < $height; ++$j) {
+    for (my $i = 0; $i < $width; ++$i) {
+      push @{$cols[$i]}, $$rows[$j][$i]
+    }
+  }
+  return \@cols;
+}
+# See https://gist.github.com/niczero/cc792d919ff7c32cbccf04fa821a1cb0 for bm
 
 1;
 __END__
@@ -87,10 +102,6 @@ Boolean result status.
 
 Error code.
 
-=item reason
-
-Error reason.
-
 =item message
 
 Error message.
@@ -101,7 +112,7 @@ Defaults to C<global>.
 
 =item error
 
-String.  Concatenation of C<code>, C<reason>, C<message>.
+String containing C<code> and C<message>.
 
 =item start_index
 
@@ -131,6 +142,11 @@ response to the next.)
 =item rows
 
 Array ref containing the result set.
+
+=item columns
+
+Array ref containing the result set transposed into columns.  This can be
+desirable for fast database insertion.
 
 =item totals_for_all_results
 
